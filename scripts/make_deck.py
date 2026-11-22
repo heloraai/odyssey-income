@@ -35,8 +35,8 @@ WRONG = (("what", "怎样算选错"), ("when", "最早什么时候看出来"), (
 DETAIL = (("earn", "钱靠什么挣"), ("cost", "要付的代价"), ("quit", "最可能在这时放弃"))
 COUNTS = {"periods": 5, "routes": 3, "backcast": 7}
 LIMITS = {"date": 10, "period": 12, "unit": 4, "year.goal": 16, "route.day": 70, "route.detail": 34, "route.key": 1, "direction.title": 11, "direction.detail": 32, "direction.reason": 48, "direction.confident": 80,
-          "chain.label": 8, "chain.text": 10, "route.name": 12, "wrong": 28,
-          "backcast.date": 10, "backcast.goal": 24, "backcast.gate": 10, "today.duration": 6,
+          "chain.label": 8, "chain.text": 10, "route.name": 12, "wrong": 20,
+          "backcast.date": 10, "backcast.goal": 24, "backcast.gate": 8, "today.duration": 6,
           "today.title": 20, "today.message": 140, "today.done": 28,
           "week.date": 8, "week.action": 26, "week.pass": 30, "premise.title": 20, "premise.text": 85}
 
