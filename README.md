@@ -34,6 +34,8 @@ git clone https://github.com/heloraai/odyssey-income ~/.claude/skills/odyssey-in
 python3 -m pip install python-pptx
 ```
 
+Windows 上把 `~` 换成 `%USERPROFILE%`，`python3` 换成 `python` 或 `py -3`。
+
 不能运行脚本的工具也能用，它会把同样的内容直接写成文档给你。
 
 ## 使用

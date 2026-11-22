@@ -102,7 +102,7 @@ description: 五年收入推演（奥德赛计划）。触发：「推演我的�
 默认交一份 8 页 PPT，让用户一眼看懂，不要让他读长文档。
 
 1. 照 `assets/deck-example.json` 的结构写一份本次的 JSON，存在用户的工作目录。示例是虚构人物，一个字都不要沿用。
-2. 运行 `python3 <本 skill 目录>/scripts/make_deck.py plan.json 五年收入推演_日期.pptx`，日期写成 2027-03-01 这样。PPT 写在用户的工作目录。缺 python-pptx 时先运行 `python3 -m pip install python-pptx`。
+2. 运行 `python3 <本 skill 目录>/scripts/make_deck.py plan.json 五年收入推演_日期.pptx`，日期写成 2027-03-01 这样，Windows 上用 `python` 或 `py -3`。PPT 写在用户的工作目录。缺 python-pptx 时先运行 `python3 -m pip install python-pptx`。
 3. 脚本会检查结构和每格字数，报错就按提示删字或补项再跑。
 4. 能渲染就逐页出图看一遍有没有缺字和溢出（比如用 LibreOffice 转成 PDF 再看）。把文件给用户，对话里只说三件事：最想走哪条、今天做哪件、动手前要先确认什么。
 

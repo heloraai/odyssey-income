@@ -6,6 +6,7 @@
 依赖：pip install python-pptx
 """
 import json
+import math
 import os
 import platform
 import re
@@ -34,7 +35,7 @@ QUESTIONS = (("want", "都能成，想要哪条"), ("regret", "没试会最后�
 WRONG = (("what", "怎样算选错"), ("when", "最早什么时候看出来"), ("loss", "会亏什么"), ("back", "退回哪里"))
 DETAIL = (("earn", "钱靠什么挣"), ("cost", "要付的代价"), ("quit", "最可能在这时放弃"))
 COUNTS = {"periods": 5, "routes": 3, "backcast": 7}
-LIMITS = {"date": 10, "period": 12, "unit": 4, "year.goal": 16, "route.day": 70, "route.detail": 34, "route.key": 1, "direction.title": 11, "direction.detail": 32, "direction.reason": 48, "direction.confident": 80,
+LIMITS = {"date": 10, "period": 10, "unit": 4, "year.goal": 16, "route.day": 70, "route.detail": 34, "route.key": 1, "direction.title": 11, "direction.detail": 32, "direction.reason": 48, "direction.confident": 80,
           "chain.label": 8, "chain.text": 10, "route.name": 12, "wrong": 20,
           "backcast.date": 10, "backcast.goal": 24, "backcast.gate": 8, "today.duration": 6,
           "today.title": 20, "today.message": 140, "today.done": 28,
@@ -94,7 +95,7 @@ def validate(d):
         errors = [f"{k} 要正好 {n} 项" for k, n in COUNTS.items() if len(d[k]) != n]
         errors += [f"路径 {r['key']} 的 years 要正好 5 项（第 1 到第 5 年）" for r in d["routes"] if len(r["years"]) != 5]
         amounts = [d["now_income"]] + [y[k] for r in d["routes"] for y in r["years"] for k in ("low", "high")]
-        if not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in amounts):
+        if not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in amounts):
             errors.append("now_income 和每年的 low / high 必须是数字（单位写在 unit 里，亏损写负数）")
         else:
             errors += [f"路径 {r['key']} 第 {j + 1} 年的保守数（low）不能比乐观数（high）大"
@@ -116,15 +117,18 @@ def validate(d):
             errors.append("premises 要 1–4 项")
         errors += [f"premises 的 url 必须以 http 开头：{p['title']}"
                    for p in d["premises"] if p.get("url") and not re.match(r"https?://", p["url"])]
+        errors += [f"{path} 不能为空" for path, value, kind in text_fields(d) if not value.strip() and kind != "backcast.gate"]
         errors += [f"{path} 超过 {LIMITS[kind]} 字（现在 {len(value)}），请删字"
                    for path, value, kind in text_fields(d) if len(value) > LIMITS[kind]]
         return errors
-    except (KeyError, TypeError, AttributeError) as e:
-        return [f"JSON 结构不对：{e!r}。照着 assets/deck-example.json 写"]
+    except KeyError as e:
+        return [f"缺少字段 {e.args[0]}。照着 assets/deck-example.json 写"]
+    except (TypeError, AttributeError):
+        return ["JSON 结构不对：有的字段该是列表或对象，却写成了别的。照着 assets/deck-example.json 写"]
 
 
 def set_theme(prs):
-    font = "冬青黑体简体中文" if platform.system() == "Darwin" else "Microsoft YaHei"
+    font = {"Darwin": "冬青黑体简体中文", "Windows": "Microsoft YaHei"}.get(platform.system(), "Noto Sans CJK SC")
     part = prs.slide_master.part.part_related_by(RT.THEME)
     xml = part.blob.decode("utf-8")
     for name, value in COLORS.items():
@@ -222,8 +226,10 @@ def overview(prs, d):
 
 
 def amount(n):
-    """数字写成上屏的样子：整数不带小数点，负数用减号。"""
-    return f"{round(n, 1):g}".replace("-", "−")
+    """数字写成上屏的样子：最多一位小数，整数不带小数点，负数用减号，不出科学计数法。"""
+    r = round(n, 1)
+    text = "0" if r == 0 else f"{r:.1f}".rstrip("0").rstrip(".")
+    return text.replace("-", "−")
 
 
 def span(low, high):
@@ -244,8 +250,9 @@ def road_map(prs, d):
         box(s, (0.55, y, 2.6, 1.55), [(f"{r['key']}  {r['name']}", 17, WHITE, True), (f"五年合计 {total} {unit}", 12, WHITE, False)] + tag,
             fill=NOW if picked else DARK)
         for i, v in enumerate(r["years"]):
+            money = span(v["low"], v["high"])
             box(s, (3.3 + i * 1.9, y, 1.78, 1.55), [(v["goal"], 13, WHITE if picked else INK, False),
-                (span(v["low"], v["high"]), 19, WHITE if picked else DARK, True)],
+                (money, 19 if len(money) <= 9 else 15 if len(money) <= 12 else 12, WHITE if picked else DARK, True)],
                 fill=GO if picked else PALE, align=PP_ALIGN.CENTER, pad=0.07)
 
 
@@ -349,6 +356,8 @@ def build(raw, out):
 
 
 def check():
+    if not __debug__:
+        sys.exit("自检靠 assert，别带 -O 运行")
     example = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "deck-example.json")
     with open(example, encoding="utf-8") as f:
         d = json.load(f)
@@ -364,6 +373,12 @@ def check():
     flipped = [{**r, "years": [{**y, "low": y["high"] + 1} for y in r["years"]]} for r in d["routes"]]
     assert validate({**d, "routes": flipped}), "没拦住保守数比乐观数大"
     assert validate({**d, "now_income": "十万"}), "没拦住收入不是数字"
+    assert validate({**d, "now_income": True}), "没拦住布尔值当收入"
+    assert validate({**d, "now_income": float("nan")}), "没拦住 NaN"
+    assert validate({**d, "routes": [{**r, "years": r["years"][:4]} for r in d["routes"]]}), "没拦住年数不对"
+    assert validate({**d, "unit": ""}), "没拦住空文字"
+    assert validate({**d, "routes": "三条路"}), "没拦住 routes 不是列表"
+    assert amount(1234567) == "1234567" and amount(-0.04) == "0" and amount(-12.5) == "−12.5"
     assert amount(-3.0) == "−3" and span(16, 16) == "16" and span(9.5, 12) == "9.5–12"
     assert validate({**d, "choice": {**d["choice"], "want": "AC"}}), "没拦住 choice 不是列表"
     assert validate({**d, "routes": [d["routes"][0]] * 3}), "没拦住重复路线"
